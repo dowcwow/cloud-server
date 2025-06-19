@@ -87,55 +87,46 @@ if (config.bufferSends) {
   setInterval(sendBuffered, 1000 / config.bufferSends);
 }
 
-wss.on('connection', async (ws, req) => {
+wss.on('connection', (ws, req) => {
+  ws.on('message', async (msg) => {
   try {
-    const { MongoClient } = require('mongodb');
-    const mongoUri = process.env.MONGO_URI;
-    const client = new MongoClient(mongoUri);
-    await client.connect();
-    const db = client.db('cloudServer');
+    const data = JSON.parse(msg);
 
-    // On new connection, send all cloud variables to client immediately
-    const variables = await db.collection('variables').find({}).toArray();
-    for (const variable of variables) {
-      ws.send(JSON.stringify({
-        method: "set",
-        name: variable.name,
-        value: variable.value
-      }));
+    if (data.method === 'set') {
+      const { MongoClient } = require('mongodb');
+
+      const mongoUri = process.env.MONGO_URI;
+      const client = new MongoClient(mongoUri);
+      await client.connect();
+      const db = client.db('cloudServer');
+	  
+	   const variables = await db.collection('variables').find({}).toArray();
+	   for (const variable of variables) {
+		ws.send(JSON.stringify({
+          method: "set",
+          name: variable.name,
+          value: variable.value
+		}));
+	}
+
+      await db.collection('variables').updateOne(
+        { name: data.name },
+        {
+          $set: {
+            value: data.value,
+            updatedAt: new Date(),
+            lastUser: data.user
+          }
+        },
+        { upsert: true }
+      );
+
+      console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
     }
-
-    // Handle incoming messages (e.g. new variable sets)
-    ws.on('message', async (msg) => {
-      try {
-        const data = JSON.parse(msg);
-        if (data.method === 'set') {
-          await db.collection('variables').updateOne(
-            { name: data.name },
-            {
-              $set: {
-                value: data.value,
-                updatedAt: new Date(),
-                lastUser: data.user
-              }
-            },
-            { upsert: true }
-          );
-          console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
-        }
-      } catch (err) {
-        console.error('❌ MongoDB cloud var error:', err);
-      }
-    });
-
-    ws.on('close', () => {
-      client.close(); // clean up MongoDB connection on socket close
-    });
   } catch (err) {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('❌ MongoDB cloud var error:', err);
   }
 });
-
 
   const client = new Client(ws, req);
 
@@ -301,7 +292,7 @@ wss.on('connection', async (ws, req) => {
   ws.on('pong', () => {
     connectionManager.handlePong(client);
   });
-
+});
 
 wss.on('close', () => {
   logger.info('WebSocket server closing');
