@@ -89,11 +89,13 @@ if (config.bufferSends) {
 
 wss.on('connection', async (ws, req) => {
   try {
+    const client = new Client(ws, req);  // your WebSocket client instance
+
     const { MongoClient } = require('mongodb');
     const mongoUri = process.env.MONGO_URI;
-    const client = new MongoClient(mongoUri);
-    await client.connect();
-    const db = client.db('cloudServer');
+    const mongoClient = new MongoClient(mongoUri); // ✅ renamed to avoid conflict
+    await mongoClient.connect();
+    const db = mongoClient.db('cloudServer');
 
     const variables = await db.collection('variables').find({}).toArray();
     for (const variable of variables) {
@@ -128,7 +130,8 @@ wss.on('connection', async (ws, req) => {
   } catch (err) {
     console.error("❌ MongoDB connection error:", err);
   }
-}); // ✅ closes wss.on('connection')
+});
+
 
 
 
