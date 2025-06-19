@@ -95,7 +95,6 @@ wss.on('connection', async (ws, req) => {
     await client.connect();
     const db = client.db('cloudServer');
 
-    // 1. Load and send all saved variables to the new client
     const variables = await db.collection('variables').find({}).toArray();
     for (const variable of variables) {
       ws.send(JSON.stringify({
@@ -105,7 +104,6 @@ wss.on('connection', async (ws, req) => {
       }));
     }
 
-    // 2. Handle incoming cloud variable updates
     ws.on('message', async (msg) => {
       try {
         const data = JSON.parse(msg);
@@ -121,16 +119,17 @@ wss.on('connection', async (ws, req) => {
             },
             { upsert: true }
           );
-          console.log(`☁ Saved: ${data.name} = ${data.value}`);
         }
       } catch (err) {
         console.error("❌ Error saving variable:", err);
       }
     });
+
   } catch (err) {
-    console.error("❌ Connection error:", err);
+    console.error("❌ MongoDB connection error:", err);
   }
-});
+}); // ✅ closes wss.on('connection')
+
 
 
   const client = new Client(ws, req);
@@ -296,7 +295,6 @@ wss.on('connection', async (ws, req) => {
 
   ws.on('pong', () => {
     connectionManager.handlePong(client);
-  });
 });
 
 wss.on('close', () => {
