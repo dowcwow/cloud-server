@@ -1,3 +1,19 @@
+const { MongoClient } = require('mongodb');
+
+const mongoUri = process.env.MONGO_URI;
+const mongoClient = new MongoClient(mongoUri);
+let db;
+
+async function connectToDB() {
+  if (!db) {
+    await mongoClient.connect();
+    db = mongoClient.db('cloudServer'); // same name you used on MongoDB Atlas
+  }
+  return db;
+}
+
+
+
 const http = require('http');
 const fs = require('fs');
 const finalhandler = require('finalhandler');
@@ -31,6 +47,9 @@ server.on('close', function() {
   wss.close();
 });
 
+
+
+
 const port = config.port;
 server.listen(port, function() {
   // Update permissions of unix sockets
@@ -44,3 +63,4 @@ server.listen(port, function() {
   }
   logger.info('Server started on port: ' + port);
 });
+
