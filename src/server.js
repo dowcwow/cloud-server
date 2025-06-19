@@ -1,4 +1,4 @@
-const WebSocket = require('ws');Add commentMore actions
+const WebSocket = require('ws');
 
 const Client = require('./Client');
 const RoomList = require('./RoomList');
@@ -99,6 +99,15 @@ wss.on('connection', (ws, req) => {
       const client = new MongoClient(mongoUri);
       await client.connect();
       const db = client.db('cloudServer');
+	  
+	  const variables = await db.collection('variables').find({}).toArray();
+      for (const variable of variables) {
+      ws.send(JSON.stringify({
+        method: "set",
+        name: variable.name,
+        value: variable.value
+    }));
+  }
 
       await db.collection('variables').updateOne(
         { name: data.name },
