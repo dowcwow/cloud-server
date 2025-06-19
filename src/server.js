@@ -8,7 +8,7 @@ const validators = require('./validators');
 const logger = require('./logger');
 const naughty = require('./naughty');
 const config = require('./config');
-const client = new Client(ws, req);  // your WebSocket client instance
+
 
 const wss = new WebSocket.Server({
   noServer: true, // we setup the server on our own
@@ -90,7 +90,8 @@ if (config.bufferSends) {
 
 wss.on('connection', async (ws, req) => {
   try {
-    
+    const client = new Client(ws, req);  // your WebSocket client instance
+	connectionManager.handleConnect(client);
 
     const { MongoClient } = require('mongodb');
     const mongoUri = process.env.MONGO_URI;
@@ -138,7 +139,7 @@ wss.on('connection', async (ws, req) => {
 
   
 
-  connectionManager.handleConnect(client);
+  
 
   function performHandshake(roomId, username) {
     if (client.room) throw new ConnectionError(ConnectionError.Error, 'Already performed handshake');
