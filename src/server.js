@@ -88,35 +88,44 @@ if (config.bufferSends) {
 }
 
 wss.on('connection', (ws, req) => {
-  ws.on('message', async (msg) => {
-  try {
-    const data = JSON.parse(msg);
+  const { MongoClient } = require('mongodb');
+  const mongoUri = process.env.MONGO_URI;
+  const client = new MongoClient(mongoUri);
+  await client.connect();
+  const db = client.db('cloudServer');
 
-    if (data.method === 'set') {
-      const { MongoClient } = require('mongodb');
-
-      const mongoUri = process.env.MONGO_URI;
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db('cloudServer');
-
-      await db.collection('variables').updateOne(
-        { name: data.name },
-        {
-          $set: {
-            value: data.value,
-            updatedAt: new Date(),
-            lastUser: data.user
-          }
-        },
-        { upsert: true }
-      );
-
-      console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
-    }
-  } catch (err) {
-    console.error('❌ MongoDB cloud var error:', err);
+  // 1. Load variables from DB and send them to the new client
+  const variables = await db.collection('variables').find({}).toArray();
+  for (const variable of variables) {
+    ws.send(JSON.stringify({
+      method: "set",
+      name: variable.name,
+      value: variable.value
+    }));
   }
+
+  // 2. Listen for new variable updates from the client
+  ws.on('message', async (msg) => {
+    try {
+      const data = JSON.parse(msg);
+      if (data.method === 'set') {
+        await db.collection('variables').updateOne(
+          { name: data.name },
+          {
+            $set: {
+              value: data.value,
+              updatedAt: new Date(),
+              lastUser: data.user
+            }
+          },
+          { upsert: true }
+        );
+        console.log(`☁ Saved: ${data.name} = ${data.value}`);
+      }
+    } catch (err) {
+      console.error("❌ Cloud var save error:", err);
+    }
+  });
 });
 
   const client = new Client(ws, req);
