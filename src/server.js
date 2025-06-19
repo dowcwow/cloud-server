@@ -135,7 +135,7 @@ wss.on('connection', async (ws, req) => {
 
 
 
-  const client = new Client(ws, req);
+  
 
   connectionManager.handleConnect(client);
 
