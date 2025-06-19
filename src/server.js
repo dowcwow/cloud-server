@@ -301,7 +301,7 @@ wss.on('connection', async (ws, req) => {
   ws.on('pong', () => {
     connectionManager.handlePong(client);
   });
-});
+
 
 wss.on('close', () => {
   logger.info('WebSocket server closing');
