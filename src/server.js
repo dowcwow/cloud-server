@@ -100,14 +100,14 @@ wss.on('connection', (ws, req) => {
       await client.connect();
       const db = client.db('cloudServer');
 	  
-	  const variables = await db.collection('variables').find({}).toArray();
-      for (const variable of variables) {
-      ws.send(JSON.stringify({
-        method: "set",
-        name: variable.name,
-        value: variable.value
-    }));
-  }
+	   const variables = await db.collection('variables').find({}).toArray();
+	   for (const variable of variables) {
+		ws.send(JSON.stringify({
+          method: "set",
+          name: variable.name,
+          value: variable.value
+		}));
+	}
 
       await db.collection('variables').updateOne(
         { name: data.name },
@@ -127,7 +127,6 @@ wss.on('connection', (ws, req) => {
     console.error('❌ MongoDB cloud var error:', err);
   }
 });
-
 
   const client = new Client(ws, req);
 
@@ -282,7 +281,7 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (error) => {
     client.error('** ERROR ** ' + error);
     client.close(ConnectionError.Error);
-  });Add commentMore actions
+  });
 
   ws.on('close', (code) => {
     connectionManager.handleDisconnect(client);
