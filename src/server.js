@@ -98,7 +98,7 @@ wss.on('connection', (ws, req) => {
       const mongoUri = process.env.MONGO_URI;
       const client = new MongoClient(mongoUri);
       await client.connect();
-      const db = client.db('cloudServer'); // or your DB name
+      const db = client.db('cloudServer');
 
       await db.collection('variables').updateOne(
         { name: data.name },
@@ -118,8 +118,6 @@ wss.on('connection', (ws, req) => {
     console.error('❌ MongoDB cloud var error:', err);
   }
 });
-
-  }
 
   const client = new Client(ws, req);
 
