@@ -1,4 +1,4 @@
-const WebSocket = require('ws');
+const WebSocket = require('ws');Add commentMore actions
 
 const Client = require('./Client');
 const RoomList = require('./RoomList');
@@ -8,7 +8,6 @@ const validators = require('./validators');
 const logger = require('./logger');
 const naughty = require('./naughty');
 const config = require('./config');
-
 
 const wss = new WebSocket.Server({
   noServer: true, // we setup the server on our own
@@ -88,58 +87,42 @@ if (config.bufferSends) {
   setInterval(sendBuffered, 1000 / config.bufferSends);
 }
 
-wss.on('connection', async (ws, req) => {
+wss.on('connection', (ws, req) => {
+  ws.on('message', async (msg) => {
   try {
-    const client = new Client(ws, req);  // your WebSocket client instance
-	connectionManager.handleConnect(client);
+    const data = JSON.parse(msg);
 
-    const { MongoClient } = require('mongodb');
-    const mongoUri = process.env.MONGO_URI;
-    const mongoClient = new MongoClient(mongoUri); // ✅ renamed to avoid conflict
-    await mongoClient.connect();
-    const db = mongoClient.db('cloudServer');
+    if (data.method === 'set') {
+      const { MongoClient } = require('mongodb');
 
-    const variables = await db.collection('variables').find({}).toArray();
-    for (const variable of variables) {
-      ws.send(JSON.stringify({
-        method: "set",
-        name: variable.name,
-        value: variable.value
-      }));
+      const mongoUri = process.env.MONGO_URI;
+      const client = new MongoClient(mongoUri);
+      await client.connect();
+      const db = client.db('cloudServer');
+
+      await db.collection('variables').updateOne(
+        { name: data.name },
+        {
+          $set: {
+            value: data.value,
+            updatedAt: new Date(),
+            lastUser: data.user
+          }
+        },
+        { upsert: true }
+      );
+
+      console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
     }
-
-    ws.on('message', async (msg) => {
-      try {
-        const data = JSON.parse(msg);
-        if (data.method === 'set') {
-          await db.collection('variables').updateOne(
-            { name: data.name },
-            {
-              $set: {
-                value: data.value,
-                updatedAt: new Date(),
-                lastUser: data.user
-              }
-            },
-            { upsert: true }
-          );
-        }
-      } catch (err) {
-        console.error("❌ Error saving variable:", err);
-      }
-    });
-
   } catch (err) {
-    console.error("❌ MongoDB connection error:", err);
+    console.error('❌ MongoDB cloud var error:', err);
   }
 });
 
 
+  const client = new Client(ws, req);
 
-
-  
-
-  
+  connectionManager.handleConnect(client);
 
   function performHandshake(roomId, username) {
     if (client.room) throw new ConnectionError(ConnectionError.Error, 'Already performed handshake');
@@ -290,7 +273,7 @@ wss.on('connection', async (ws, req) => {
   ws.on('error', (error) => {
     client.error('** ERROR ** ' + error);
     client.close(ConnectionError.Error);
-  });
+  });Add commentMore actions
 
   ws.on('close', (code) => {
     connectionManager.handleDisconnect(client);
@@ -300,6 +283,7 @@ wss.on('connection', async (ws, req) => {
 
   ws.on('pong', () => {
     connectionManager.handlePong(client);
+  });
 });
 
 wss.on('close', () => {
