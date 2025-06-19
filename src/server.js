@@ -88,15 +88,37 @@ if (config.bufferSends) {
 }
 
 wss.on('connection', (ws, req) => {
-  // We know of at least one library that sends Scratch session tokens to us for no reason.
-  // As this is putting accounts at unnecessary risk, refuse to accept the connection until they fix their code.
-  // It's not important for us to really parse cookies, we just want it to be hard to do the wrong thing.
-  if (req.headers.cookie && req.headers.cookie.startsWith('scratchsessionsid=')) {
-    logger.info('A connection closed for security reasons.');
-    // Sending an invalid message to the client should hopefully trigger a warning somewhere for them to see.
-    ws.send('The cloud data library you are using is putting your Scratch account at risk by sending us your login token for no reason. Change your Scratch password immediately, then contact the maintainers of that library for further information. This connection is being refused to protect your security.');
-    ws.close(4005);
-    return;
+  ws.on('message', async (msg) => {
+  try {
+    const data = JSON.parse(msg);
+
+    if (data.method === 'set') {
+      const { MongoClient } = require('mongodb');
+
+      const mongoUri = process.env.MONGO_URI;
+      const client = new MongoClient(mongoUri);
+      await client.connect();
+      const db = client.db('cloudServer'); // or your DB name
+
+      await db.collection('variables').updateOne(
+        { name: data.name },
+        {
+          $set: {
+            value: data.value,
+            updatedAt: new Date(),
+            lastUser: data.user
+          }
+        },
+        { upsert: true }
+      );
+
+      console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
+    }
+  } catch (err) {
+    console.error('❌ MongoDB cloud var error:', err);
+  }
+});
+
   }
 
   const client = new Client(ws, req);
