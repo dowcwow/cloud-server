@@ -89,44 +89,51 @@ if (config.bufferSends) {
 
 wss.on('connection', (ws, req) => {
   ws.on('message', async (msg) => {
-  try {
-    const data = JSON.parse(msg);
+    let client; // <-- declare here!
+    try {
+      const data = JSON.parse(msg);
 
-    if (data.method === 'set') {
-      const { MongoClient } = require('mongodb');
+      if (data.method === 'set') {
+        const { MongoClient } = require('mongodb');
 
-      const mongoUri = process.env.MONGO_URI;
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const db = client.db('cloudServer');
-	  
-	   const variables = await db.collection('variables').find({}).toArray();
-	   for (const variable of variables) {
-		ws.send(JSON.stringify({
-          method: "set",
-          name: variable.name,
-          value: variable.value
-		}));
-	}
+        const mongoUri = process.env.MONGO_URI;
+        client = new MongoClient(mongoUri); // <-- no `const` here
+        await client.connect();
+        const db = client.db('cloudServer');
+        
+        const variables = await db.collection('variables').find({}).toArray();
+        for (const variable of variables) {
+          ws.send(JSON.stringify({
+            method: "set",
+            name: variable.name,
+            value: variable.value
+          }));
+        }
 
-      await db.collection('variables').updateOne(
-        { name: data.name },
-        {
-          $set: {
-            value: data.value,
-            updatedAt: new Date(),
-            lastUser: data.user
-          }
-        },
-        { upsert: true }
-      );
+        await db.collection('variables').updateOne(
+          { name: data.name },
+          {
+            $set: {
+              value: data.value,
+              updatedAt: new Date(),
+              lastUser: data.user
+            }
+          },
+          { upsert: true }
+        );
 
-      console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
+        console.log(`☁ Saved variable: ${data.name} = ${data.value}`);
+      }
+    } catch (err) {
+      console.error('❌ MongoDB cloud var error:', err);
+    } finally {
+      if (client) {
+        await client.close(); // ✅ safely closes the connection
+      }
     }
-  } catch (err) {
-    console.error('❌ MongoDB cloud var error:', err);
-  }
+  });
 });
+
 
   const client = new Client(ws, req);
 
